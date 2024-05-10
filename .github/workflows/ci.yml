@@ -298,7 +298,7 @@ jobs:
           languages: c
 
       - name: configure project
-        run: cmake -DSET_TWEAK=Off -DBUILD_TESTS=On -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' .
+        run: cmake -DCMAKE_BUILD_TYPE=Release .
 
       - name: build project
         run: cmake --build . --target package --verbose -j4
