@@ -6,7 +6,7 @@
 #include "modules/physicalmemory/physicalmemory.h"
 #include "util/stringUtils.h"
 
-#define FF_PHYSICALMEMORY_NUM_FORMAT_ARGS 9
+#define FF_PHYSICALMEMORY_NUM_FORMAT_ARGS 11
 #define FF_PHYSICALMEMORY_DISPLAY_NAME "Physical Memory"
 
 void ffPrintPhysicalMemory(FFPhysicalMemoryOptions* options)
@@ -30,31 +30,26 @@ void ffPrintPhysicalMemory(FFPhysicalMemoryOptions* options)
         ffStrbufClear(&prettySize);
         ffParseSize(device->size, &prettySize);
 
-        if(options->moduleArgs.key.length == 0)
-        {
-            if (device->maxSpeed)
-                ffStrbufSetF(&key, "%s (%s %s-%u)", FF_PHYSICALMEMORY_DISPLAY_NAME, device->vendor.chars, device->type.chars, device->maxSpeed);
-            else
-                ffStrbufSetF(&key, "%s (%s %s)", FF_PHYSICALMEMORY_DISPLAY_NAME, device->vendor.chars, device->type.chars);
-        }
-        else
-        {
-            FF_PARSE_FORMAT_STRING_CHECKED(&key, &options->moduleArgs.key, 5, ((FFformatarg[]){
-                {FF_FORMAT_ARG_TYPE_UINT, &i},
-                {FF_FORMAT_ARG_TYPE_STRBUF, &device->vendor},
-                {FF_FORMAT_ARG_TYPE_STRBUF, &device->type},
-                {FF_FORMAT_ARG_TYPE_UINT, &device->maxSpeed},
-                {FF_FORMAT_ARG_TYPE_STRBUF, &device->deviceLocator},
-            }));
-        }
-
         if (options->moduleArgs.outputFormat.length == 0)
         {
-            ffPrintLogoAndKey(key.chars, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT);
+            ffPrintLogoAndKey(
+                FF_PHYSICALMEMORY_DISPLAY_NAME,
+                result.length == 1 ? 0 : (uint8_t) i,
+                &options->moduleArgs,
+                FF_PRINT_TYPE_DEFAULT);
+
+            fputs(prettySize.chars, stdout);
+            fputs(" - ", stdout);
+            ffStrbufWriteTo(&device->type, stdout);
+            if (device->maxSpeed > 0)
+                printf("-%u", device->maxSpeed);
             if (device->runningSpeed > 0 && device->runningSpeed != device->maxSpeed)
-                printf("%s, running at %u MT/s\n", prettySize.chars, device->runningSpeed);
-            else
-                puts(prettySize.chars);
+                printf(" @ %u MT/s", device->runningSpeed);
+            if (device->vendor.length > 0)
+                printf(" (%s)", device->vendor.chars);
+            if (device->ecc)
+                fputs(" - ECC", stdout);
+            putchar('\n');
         }
         else
         {
@@ -65,9 +60,11 @@ void ffPrintPhysicalMemory(FFPhysicalMemoryOptions* options)
                 {FF_FORMAT_ARG_TYPE_UINT, &device->runningSpeed},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &device->type},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &device->formFactor},
-                {FF_FORMAT_ARG_TYPE_DOUBLE, &device->deviceLocator},
+                {FF_FORMAT_ARG_TYPE_DOUBLE, &device->locator},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &device->vendor},
                 {FF_FORMAT_ARG_TYPE_STRBUF, &device->serial},
+                {FF_FORMAT_ARG_TYPE_STRBUF, &device->partNumber},
+                {FF_FORMAT_ARG_TYPE_BOOL, &device->ecc},
             }));
         }
     }
@@ -75,9 +72,11 @@ void ffPrintPhysicalMemory(FFPhysicalMemoryOptions* options)
     FF_LIST_FOR_EACH(FFPhysicalMemoryResult, device, result)
     {
         ffStrbufDestroy(&device->type);
+        ffStrbufDestroy(&device->locator);
         ffStrbufDestroy(&device->formFactor);
         ffStrbufDestroy(&device->vendor);
         ffStrbufDestroy(&device->serial);
+        ffStrbufDestroy(&device->partNumber);
     }
 }
 
@@ -135,17 +134,22 @@ void ffGeneratePhysicalMemoryJsonResult(FF_MAYBE_UNUSED FFPhysicalMemoryOptions*
         yyjson_mut_obj_add_uint(doc, obj, "maxSpeed", device->maxSpeed);
         yyjson_mut_obj_add_uint(doc, obj, "runningSpeed", device->runningSpeed);
         yyjson_mut_obj_add_strbuf(doc, obj, "type", &device->type);
+        yyjson_mut_obj_add_strbuf(doc, obj, "locator", &device->locator);
         yyjson_mut_obj_add_strbuf(doc, obj, "formFactor", &device->formFactor);
         yyjson_mut_obj_add_strbuf(doc, obj, "vendor", &device->vendor);
         yyjson_mut_obj_add_strbuf(doc, obj, "serial", &device->serial);
+        yyjson_mut_obj_add_strbuf(doc, obj, "partNumber", &device->partNumber);
+        yyjson_mut_obj_add_bool(doc, obj, "ecc", device->ecc);
     }
 
     FF_LIST_FOR_EACH(FFPhysicalMemoryResult, device, result)
     {
         ffStrbufDestroy(&device->type);
+        ffStrbufDestroy(&device->locator);
         ffStrbufDestroy(&device->formFactor);
         ffStrbufDestroy(&device->vendor);
         ffStrbufDestroy(&device->serial);
+        ffStrbufDestroy(&device->partNumber);
     }
 }
 
@@ -158,9 +162,11 @@ void ffPrintPhysicalMemoryHelpFormat(void)
         "Running speed (in MT/s)",
         "Type (DDR4, DDR5, etc.)",
         "Form factor (SODIMM, DIMM, etc.)",
-        "Device locator (SIMM1, SIMM2, etc.)",
+        "Bank/Device Locator (BANK0/SIMM0, BANK0/SIMM1, etc.)",
         "Vendor",
         "Serial number",
+        "Part number",
+        "ECC enabled",
     }));
 }
 

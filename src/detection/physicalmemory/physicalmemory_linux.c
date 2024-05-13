@@ -85,12 +85,17 @@ const char* ffDetectPhysicalMemory(FFlist* result)
         FFPhysicalMemoryResult* device = ffListAdd(result);
         ffStrbufInit(&device->type);
         ffStrbufInit(&device->formFactor);
-        ffStrbufInit(&device->deviceLocator);
+        ffStrbufInit(&device->locator);
         ffStrbufInit(&device->vendor);
         ffStrbufInit(&device->serial);
+        ffStrbufInit(&device->partNumber);
         device->size = 0;
         device->maxSpeed = 0;
         device->runningSpeed = 0;
+        device->ecc = false;
+
+        if (data->TotalWidth != 0xFFFF && data->DataWidth != 0xFFFF)
+            device->ecc = data->TotalWidth > data->DataWidth;
 
         if (data->Size != 0xFFFF)
         {
@@ -108,8 +113,7 @@ const char* ffDetectPhysicalMemory(FFlist* result)
             }
         }
 
-        ffStrbufSetStatic(&device->deviceLocator, ffSmbiosLocateString(strings, data->DeviceLocator));
-        ffCleanUpSmbiosValue(&device->deviceLocator);
+        ffStrbufSetF(&device->locator, "%s/%s", ffSmbiosLocateString(strings, data->BankLocator), ffSmbiosLocateString(strings, data->DeviceLocator));
 
         switch (data->FormFactor)
         {
@@ -179,10 +183,13 @@ const char* ffDetectPhysicalMemory(FFlist* result)
                 device->maxSpeed = data->Speed == 0xFFFF ? data->ExtendedSpeed : data->Speed;
 
             ffStrbufSetStatic(&device->vendor, ffSmbiosLocateString(strings, data->Manufacturer));
-            ffCleanUpSmbiosValue(&device->vendor);
+            FFPhysicalMemoryUpdateVendorString(device);
 
             ffStrbufSetStatic(&device->serial, ffSmbiosLocateString(strings, data->SerialNumber));
             ffCleanUpSmbiosValue(&device->serial);
+
+            ffStrbufSetStatic(&device->partNumber, ffSmbiosLocateString(strings, data->PartNumber));
+            ffCleanUpSmbiosValue(&device->partNumber);
         }
 
         if (data->Header.Length > offsetof(FFSmbiosMemoryDevice, ConfiguredMemorySpeed)) // 2.7+

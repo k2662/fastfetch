@@ -2,20 +2,31 @@
 
 Changes:
 * The long deprecated options `--set` and `--set-keyless` are removed.
+* `Kernel` module now prints kernel name by default
 
 Features:
-* Support st terminal font detection for font configuration compiled in st binary (TerminalFont, Linux)
-* Support option `--color-output` to change output color of all modules except `Title`, `Separator` and `Colors`
+* Support `st` terminal font detection for font configuration compiled in `st` binary (TerminalFont, Linux)
+* Add option `--color-output` to change output color of all modules except `Title`, `Separator`
     * `display.color.output` in JSONC config file
-* Support option `--<module>-output-color` to change output color of one specified module, which overrides the global option `--color-output`
-* Add new module `Loadavg` to print load averages (Loadavg)
+* Add option `--<module>-output-color` to change output color of one specified module, which overrides the global option `--color-output`
 * Add option `--publicip-ipv6` to print IPv6 address (PublicIP)
+* Add new module `Loadavg` to print load averages (Loadavg)
+* Add new module `PhysicalMemory` to print information of physical memory devices (PhysicalMemory)
+    * Requires root permission to work on Linux and FreeBSD
+* Support specifying `--logo-width` only for `--kitty-direct` and `--iterm` (Logo)
+* Add option `--localip-show-all-ips` to show all IPs assigned to the same interface (LocalIP)
+    * By default first IP will be shown only
 
 Bugfixes:
 * Rename option `--temperature-unit` to `--temp-unit` as stated in help messages
+* Fix compatibility with `(*term)` (#909, Terminal, macOS)
+* Fix alternate logo doesn't work with type builtin (Logo)
+* Fix DahliaOS detection (Logo)
 
 Logos:
-* Fix DahliaOS detection
+* Add openSUSE Slowroll
+* Add macOS3
+* Add Quirinux
 
 # 2.11.5
 

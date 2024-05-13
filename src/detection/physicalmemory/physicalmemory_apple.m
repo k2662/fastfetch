@@ -12,21 +12,26 @@ static void appendDevice(
     NSString* size,
 
     // Intel only
-    NSString* deviceLocator,
+    NSString* locator,
     NSString* serial,
-    NSString* speed)
+    NSString* partNumber,
+    NSString* speed,
+    bool ecc)
 {
     FFPhysicalMemoryResult* device = ffListAdd(result);
     ffStrbufInitS(&device->type, type.UTF8String);
     ffStrbufInit(&device->formFactor);
-    ffStrbufInitS(&device->deviceLocator, deviceLocator.UTF8String);
+    ffStrbufInitS(&device->locator, locator.UTF8String);
     ffStrbufInitS(&device->vendor, vendor.UTF8String);
-    ffCleanUpSmbiosValue(&device->vendor);
+    FFPhysicalMemoryUpdateVendorString(device);
     ffStrbufInitS(&device->serial, serial.UTF8String);
     ffCleanUpSmbiosValue(&device->serial);
+    ffStrbufInitS(&device->partNumber, partNumber.UTF8String);
+    ffCleanUpSmbiosValue(&device->partNumber);
     device->size = 0;
     device->maxSpeed = 0;
     device->runningSpeed = 0;
+    device->ecc = ecc;
 
     if (size)
     {
@@ -92,7 +97,9 @@ const char* ffDetectPhysicalMemory(FFlist* result)
                     item[@"dimm_size"],
                     item[@"_name"],
                     item[@"dimm_serial_number"],
-                    item[@"dimm_speed"]);
+                    item[@"dimm_part_number"],
+                    item[@"dimm_speed"],
+                    !![data[@"global_ecc_state"] isEqualToString:@"ecc_enabled"]);
             }
         }
         else
@@ -104,7 +111,9 @@ const char* ffDetectPhysicalMemory(FFlist* result)
                 data[@"SPMemoryDataType"],
                 nil,
                 nil,
-                nil);
+                nil,
+                nil,
+                false);
         }
     }
 
