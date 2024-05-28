@@ -7,6 +7,7 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitBiosOptions(&options->bios);
     ffInitBluetoothOptions(&options->bluetooth);
     ffInitBoardOptions(&options->board);
+    ffInitBootmgrOptions(&options->bootmgr);
     ffInitBreakOptions(&options->break_);
     ffInitBrightnessOptions(&options->brightness);
     ffInitCameraOptions(&options->camera);
@@ -22,6 +23,7 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitDiskOptions(&options->disk);
     ffInitDiskIOOptions(&options->diskIo);
     ffInitDisplayOptions(&options->display);
+    ffInitEditorOptions(&options->editor);
     ffInitFontOptions(&options->font);
     ffInitGPUOptions(&options->gpu);
     ffInitGamepadOptions(&options->gamepad);
@@ -73,6 +75,7 @@ void ffOptionsDestroyModules(FFOptionsModules* options)
     ffDestroyBiosOptions(&options->bios);
     ffDestroyBluetoothOptions(&options->bluetooth);
     ffDestroyBoardOptions(&options->board);
+    ffDestroyBootmgrOptions(&options->bootmgr);
     ffDestroyBreakOptions(&options->break_);
     ffDestroyBrightnessOptions(&options->brightness);
     ffDestroyCameraOptions(&options->camera);
@@ -88,6 +91,7 @@ void ffOptionsDestroyModules(FFOptionsModules* options)
     ffDestroyDiskOptions(&options->disk);
     ffDestroyDiskIOOptions(&options->diskIo);
     ffDestroyDisplayOptions(&options->display);
+    ffDestroyEditorOptions(&options->editor);
     ffDestroyFontOptions(&options->font);
     ffDestroyGPUOptions(&options->gpu);
     ffDestroyGamepadOptions(&options->gamepad);
