@@ -1,3 +1,4 @@
+#include "fastfetch.h"
 #include "common/option.h"
 #include "common/color.h"
 #include "util/stringUtils.h"
@@ -49,20 +50,29 @@ bool ffOptionParseModuleArgs(const char* argumentKey, const char* subKey, const 
         ffOptionParseColor(value, &result->outputColor);
         return true;
     }
-    else if(ffStrEqualsIgnCase(subKey, "key-color"))
+    else if(ffStrStartsWithIgnCase(subKey, "key-"))
     {
-        if(value == NULL)
+        const char* subKey2 = subKey + strlen("key-");
+        if(ffStrEqualsIgnCase(subKey2, "color"))
         {
-            fprintf(stderr, "Error: usage: %s <str>\n", argumentKey);
-            exit(477);
+            if(value == NULL)
+            {
+                fprintf(stderr, "Error: usage: %s <str>\n", argumentKey);
+                exit(477);
+            }
+            ffOptionParseColor(value, &result->keyColor);
+            return true;
         }
-        ffOptionParseColor(value, &result->keyColor);
-        return true;
-    }
-    else if(ffStrEqualsIgnCase(subKey, "key-width"))
-    {
-        result->keyWidth = ffOptionParseUInt32(argumentKey, value);
-        return true;
+        else if(ffStrEqualsIgnCase(subKey2, "width"))
+        {
+            result->keyWidth = ffOptionParseUInt32(argumentKey, value);
+            return true;
+        }
+        else if(ffStrEqualsIgnCase(subKey2, "icon"))
+        {
+            ffOptionParseString(argumentKey, value, &result->keyIcon);
+            return true;
+        }
     }
     return false;
 }
@@ -147,12 +157,22 @@ bool ffOptionParseBoolean(const char* str)
 
 void ffOptionParseColorNoClear(const char* value, FFstrbuf* buffer)
 {
+    // If value is already an ANSI escape code, use it
+    if (value[0] == '\e' && value[1] == '[')
+    {
+        ffStrbufAppendS(buffer, value + 2);
+        ffStrbufTrimRight(buffer, 'm');
+        return;
+    }
+
     ffStrbufEnsureFree(buffer, 63);
 
     while(*value != '\0')
     {
         #define FF_APPEND_COLOR_CODE_COND(prefix, code) \
             if(ffStrStartsWithIgnCase(value, #prefix)) { ffStrbufAppendS(buffer, code); value += strlen(#prefix); continue; }
+        #define FF_APPEND_COLOR_PROP_COND(prefix, prop) \
+            if(ffStrStartsWithIgnCase(value, #prefix)) { if (instance.config.display.prop.length) ffStrbufAppend(buffer, &instance.config.display.prop); else ffStrbufAppendS(buffer, FF_COLOR_FG_DEFAULT); value += strlen(#prefix); continue; }
 
         if (ffCharIsEnglishAlphabet(value[0]))
         {
@@ -182,27 +202,20 @@ void ffOptionParseColorNoClear(const char* value, FFstrbuf* buffer)
             else FF_APPEND_COLOR_CODE_COND(light_magenta, FF_COLOR_FG_LIGHT_MAGENTA)
             else FF_APPEND_COLOR_CODE_COND(light_cyan, FF_COLOR_FG_LIGHT_CYAN)
             else FF_APPEND_COLOR_CODE_COND(light_white, FF_COLOR_FG_LIGHT_WHITE)
+            else FF_APPEND_COLOR_PROP_COND(keys, colorKeys)
+            else FF_APPEND_COLOR_PROP_COND(title, colorTitle)
+            else FF_APPEND_COLOR_PROP_COND(output, colorOutput)
+            else FF_APPEND_COLOR_PROP_COND(separator, colorSeparator)
+            else
+            {
+                fprintf(stderr, "Error: invalid color code found: %s\n", value);
+                exit(479);
+            }
         }
         ffStrbufAppendC(buffer, *value);
         ++value;
 
         #undef FF_APPEND_COLOR_CODE_COND
+        #undef FF_APPEND_COLOR_PROP_COND
     }
-}
-
-void ffOptionInitModuleArg(FFModuleArgs* args)
-{
-    ffStrbufInit(&args->key);
-    ffStrbufInit(&args->keyColor);
-    ffStrbufInit(&args->outputFormat);
-    ffStrbufInit(&args->outputColor);
-    args->keyWidth = 0;
-}
-
-void ffOptionDestroyModuleArg(FFModuleArgs* args)
-{
-    ffStrbufDestroy(&args->key);
-    ffStrbufDestroy(&args->keyColor);
-    ffStrbufDestroy(&args->outputFormat);
-    ffStrbufDestroy(&args->outputColor);
 }

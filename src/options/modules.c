@@ -6,6 +6,7 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitBatteryOptions(&options->battery);
     ffInitBiosOptions(&options->bios);
     ffInitBluetoothOptions(&options->bluetooth);
+    ffInitBluetoothRadioOptions(&options->bluetoothRadio);
     ffInitBoardOptions(&options->board);
     ffInitBootmgrOptions(&options->bootmgr);
     ffInitBreakOptions(&options->break_);
@@ -13,6 +14,7 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitCameraOptions(&options->camera);
     ffInitCPUOptions(&options->cpu);
     ffInitCPUUsageOptions(&options->cpuUsage);
+    ffInitCPUCacheOptions(&options->cpuCache);
     ffInitChassisOptions(&options->chassis);
     ffInitColorsOptions(&options->colors);
     ffInitCommandOptions(&options->command);
@@ -23,12 +25,14 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitDiskOptions(&options->disk);
     ffInitDiskIOOptions(&options->diskIo);
     ffInitDisplayOptions(&options->display);
+    ffInitDNSOptions(&options->dns);
     ffInitEditorOptions(&options->editor);
     ffInitFontOptions(&options->font);
     ffInitGPUOptions(&options->gpu);
     ffInitGamepadOptions(&options->gamepad);
     ffInitHostOptions(&options->host);
     ffInitIconsOptions(&options->icons);
+    ffInitInitSystemOptions(&options->initSystem);
     ffInitKernelOptions(&options->kernel);
     ffInitLMOptions(&options->lm);
     ffInitLoadavgOptions(&options->loadavg);
@@ -67,6 +71,7 @@ void ffOptionsInitModules(FFOptionsModules* options)
     ffInitWallpaperOptions(&options->wallpaper);
     ffInitWeatherOptions(&options->weather);
     ffInitWifiOptions(&options->wifi);
+    ffInitZpoolOptions(&options->zpool);
 }
 
 void ffOptionsDestroyModules(FFOptionsModules* options)
@@ -74,12 +79,14 @@ void ffOptionsDestroyModules(FFOptionsModules* options)
     ffDestroyBatteryOptions(&options->battery);
     ffDestroyBiosOptions(&options->bios);
     ffDestroyBluetoothOptions(&options->bluetooth);
+    ffDestroyBluetoothRadioOptions(&options->bluetoothRadio);
     ffDestroyBoardOptions(&options->board);
     ffDestroyBootmgrOptions(&options->bootmgr);
     ffDestroyBreakOptions(&options->break_);
     ffDestroyBrightnessOptions(&options->brightness);
     ffDestroyCameraOptions(&options->camera);
     ffDestroyCPUOptions(&options->cpu);
+    ffDestroyCPUCacheOptions(&options->cpuCache);
     ffDestroyCPUUsageOptions(&options->cpuUsage);
     ffDestroyChassisOptions(&options->chassis);
     ffDestroyColorsOptions(&options->colors);
@@ -91,12 +98,14 @@ void ffOptionsDestroyModules(FFOptionsModules* options)
     ffDestroyDiskOptions(&options->disk);
     ffDestroyDiskIOOptions(&options->diskIo);
     ffDestroyDisplayOptions(&options->display);
+    ffDestroyDNSOptions(&options->dns);
     ffDestroyEditorOptions(&options->editor);
     ffDestroyFontOptions(&options->font);
     ffDestroyGPUOptions(&options->gpu);
     ffDestroyGamepadOptions(&options->gamepad);
     ffDestroyHostOptions(&options->host);
     ffDestroyIconsOptions(&options->icons);
+    ffDestroyInitSystemOptions(&options->initSystem);
     ffDestroyKernelOptions(&options->kernel);
     ffDestroyLMOptions(&options->lm);
     ffDestroyLoadavgOptions(&options->loadavg);
@@ -135,4 +144,5 @@ void ffOptionsDestroyModules(FFOptionsModules* options)
     ffDestroyWallpaperOptions(&options->wallpaper);
     ffDestroyWeatherOptions(&options->weather);
     ffDestroyWifiOptions(&options->wifi);
+    ffDestroyZpoolOptions(&options->zpool);
 }

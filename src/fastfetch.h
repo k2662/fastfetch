@@ -27,7 +27,6 @@
 #include "options/logo.h"
 #include "options/display.h"
 #include "options/general.h"
-#include "options/library.h"
 
 typedef struct FFconfig
 {
@@ -35,7 +34,6 @@ typedef struct FFconfig
     FFOptionsDisplay display;
     FFOptionsGeneral general;
     FFOptionsModules modules;
-    FFOptionsLibrary library;
 } FFconfig;
 
 typedef struct FFstate
@@ -43,6 +41,7 @@ typedef struct FFstate
     uint32_t logoWidth;
     uint32_t logoHeight;
     uint32_t keysHeight;
+    bool terminalLightTheme;
 
     FFPlatform platform;
     yyjson_doc* configDoc;

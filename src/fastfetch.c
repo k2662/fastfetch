@@ -319,44 +319,6 @@ static void listModules(bool pretty)
     }
 }
 
-// Temporary copy before new release of yyjson
-static bool ffyyjson_locate_pos(const char *str, size_t len, size_t pos,
-                                size_t *line, size_t *col, size_t *chr) {
-    size_t line_sum = 0, line_pos = 0, chr_sum = 0;
-    const uint8_t *cur = (const uint8_t *)str;
-    const uint8_t *end = cur + pos;
-
-    if (!str || pos > len) {
-        if (line) *line = 0;
-        if (col) *col = 0;
-        if (chr) *chr = 0;
-        return false;
-    }
-
-    while (cur < end) {
-        uint8_t c = *cur;
-        chr_sum += 1;
-        if (__builtin_expect(c < 0x80, true)) {         /* 0xxxxxxx (0x00-0x7F) ASCII */
-            if (c == '\n') {
-                line_sum += 1;
-                line_pos = chr_sum;
-            }
-            cur += 1;
-        }
-        else if (c < 0xC0) cur += 1;    /* 10xxxxxx (0x80-0xBF) Invalid */
-        else if (c < 0xE0) cur += 2;    /* 110xxxxx (0xC0-0xDF) 2-byte UTF-8 */
-        else if (c < 0xF0) cur += 3;    /* 1110xxxx (0xE0-0xEF) 3-byte UTF-8 */
-        else if (c < 0xF8) cur += 4;    /* 11110xxx (0xF0-0xF7) 4-byte UTF-8 */
-        else               cur += 1;    /* 11111xxx (0xF8-0xFF) Invalid */
-    }
-
-    if (line) *line = line_sum + 1;
-    if (col) *col = chr_sum - line_pos + 1;
-    if (chr) *chr = chr_sum;
-    return true;
-}
-
-
 static bool parseJsoncFile(const char* path)
 {
     assert(!instance.state.configDoc);
@@ -371,7 +333,7 @@ static bool parseJsoncFile(const char* path)
                 size_t row = 0, col = error.pos;
                 FF_STRBUF_AUTO_DESTROY content = ffStrbufCreate();
                 if (ffAppendFileBuffer(path, &content))
-                    ffyyjson_locate_pos(content.chars, content.length, error.pos, &row, &col, NULL);
+                    yyjson_locate_pos(content.chars, content.length, error.pos, &row, &col, NULL);
                 fprintf(stderr, "Error: failed to parse JSON config file `%s` at (%zu, %zu): %s\n", path, row, col, error.msg);
                 exit(477);
             }
@@ -391,7 +353,6 @@ static bool parseJsoncFile(const char* path)
             (error = ffOptionsParseLogoJsonConfig(&instance.config.logo, root)) ||
             (error = ffOptionsParseGeneralJsonConfig(&instance.config.general, root)) ||
             (error = ffOptionsParseDisplayJsonConfig(&instance.config.display, root)) ||
-            (error = ffOptionsParseLibraryJsonConfig(&instance.config.library, root)) ||
             false
         ) {
             fprintf(stderr, "JsonConfig Error: %s\n", error);
@@ -501,9 +462,8 @@ static void optionParseConfigFile(FFdata* data, const char* key, const char* val
 
 static void printVersion()
 {
-    FFVersionResult result = {};
-    ffDetectVersion(&result);
-    printf("%s %s%s%s (%s)\n", result.projectName, result.version, result.versionTweak, result.debugMode ? "-debug" : "", result.architecture);
+    FFVersionResult* result = &ffVersionResult;
+    printf("%s %s%s%s (%s)\n", result->projectName, result->version, result->versionTweak, result->debugMode ? "-debug" : "", result->architecture);
 }
 
 static void parseCommand(FFdata* data, char* key, char* value)
@@ -635,7 +595,6 @@ static void parseOption(FFdata* data, const char* key, const char* value)
         ffOptionsParseGeneralCommandLine(&instance.config.general, key, value) ||
         ffOptionsParseLogoCommandLine(&instance.config.logo, key, value) ||
         ffOptionsParseDisplayCommandLine(&instance.config.display, key, value) ||
-        ffOptionsParseLibraryCommandLine(&instance.config.library, key, value) ||
         ffParseModuleOptions(key, value)
     ) {}
 
@@ -679,7 +638,7 @@ static void parseArguments(FFdata* data, int argc, char** argv, void (*parser)(F
         if(i == argc - 1 || (
             argv[i + 1][0] == '-' &&
             argv[i + 1][1] != '\0' && // `-` is used as an alias for `/dev/stdin`
-            strcasecmp(argv[i], "--separator-string") != 0 // Separator string can start with a -
+            !ffStrEqualsIgnCase(argv[i], "--separator-string") // Separator string can start with a -
         )) {
             parser(data, argv[i], NULL);
         }
@@ -727,7 +686,6 @@ static void writeConfigFile(FFdata* data, const FFstrbuf* filename)
     ffOptionsGenerateLogoJsonConfig(&instance.config.logo, doc);
     ffOptionsGenerateDisplayJsonConfig(&instance.config.display, doc);
     ffOptionsGenerateGeneralJsonConfig(&instance.config.general, doc);
-    ffOptionsGenerateLibraryJsonConfig(&instance.config.library, doc);
     ffMigrateCommandOptionToJsonc(data, doc);
 
     if (ffStrbufEqualS(filename, "-"))

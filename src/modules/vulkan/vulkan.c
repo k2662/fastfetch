@@ -44,10 +44,10 @@ void ffPrintVulkan(FFVulkanOptions* options)
     else
     {
         FF_PRINT_FORMAT_CHECKED(FF_VULKAN_MODULE_NAME, 0, &options->moduleArgs, FF_PRINT_TYPE_DEFAULT, FF_VULKAN_NUM_FORMAT_ARGS, ((FFformatarg[]) {
-            {FF_FORMAT_ARG_TYPE_STRBUF, &vulkan->driver, "driver"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &vulkan->apiVersion, "api-version"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &vulkan->conformanceVersion, "conformance-version"},
-            {FF_FORMAT_ARG_TYPE_STRBUF, &vulkan->instanceVersion, "instance-version"},
+            FF_FORMAT_ARG(vulkan->driver, "driver"),
+            FF_FORMAT_ARG(vulkan->apiVersion, "api-version"),
+            FF_FORMAT_ARG(vulkan->conformanceVersion, "conformance-version"),
+            FF_FORMAT_ARG(vulkan->instanceVersion, "instance-version"),
         }));
     }
 }
@@ -110,6 +110,7 @@ void ffGenerateVulkanJsonResult(FF_MAYBE_UNUSED FFVulkanOptions* options, yyjson
         yyjson_mut_obj_add_strbuf(doc, gpuObj, "name", &vulkanGpu->name);
         yyjson_mut_obj_add_strbuf(doc, gpuObj, "driver", &vulkanGpu->driver);
         yyjson_mut_obj_add_strbuf(doc, gpuObj, "platformApi", &vulkanGpu->platformApi);
+        yyjson_mut_obj_add_uint(doc, gpuObj, "deviceId", vulkanGpu->deviceId);
 
         yyjson_mut_val* memoryObj = yyjson_mut_obj_add_obj(doc, gpuObj, "memory");
 
@@ -166,7 +167,7 @@ void ffInitVulkanOptions(FFVulkanOptions* options)
         ffPrintVulkanHelpFormat,
         ffGenerateVulkanJsonConfig
     );
-    ffOptionInitModuleArg(&options->moduleArgs);
+    ffOptionInitModuleArg(&options->moduleArgs, "");
 }
 
 void ffDestroyVulkanOptions(FFVulkanOptions* options)

@@ -17,6 +17,7 @@
     "board",
     "chassis",
     "kernel",
+    "initsystem",
     "uptime",
     "loadavg",
     "processes",
@@ -41,24 +42,35 @@
     "terminaltheme",
     {
         "type": "cpu",
-        "showPeCoreCount": true
+        "showPeCoreCount": true,
+        "temp": true
     },
+    "cpucache",
     "cpuusage",
-    "gpu",
+    {
+        "type": "gpu",
+        "driverSpecific": true,
+        "temp": true
+    },
     "memory",
     "physicalmemory",
     "swap",
     "disk",
+    "zpool",
     "battery",
     "poweradapter",
     "player",
     "media",
-    "publicip",
+    {
+        "type": "publicip",
+        "timeout": 1000
+    },
     {
         "type": "localip",
-        "showIpV6": true,
+        "showIpv6": true,
         "showMac": true
     },
+    "dns",
     "wifi",
     "datetime",
     "locale",
@@ -67,6 +79,7 @@
     "opencl",
     "users",
     "bluetooth",
+    "bluetoothradio",
     "sound",
     "camera",
     "gamepad",
@@ -76,7 +89,10 @@
     },
     "netio",
     "diskio",
-    "physicaldisk",
+    {
+        "type": "physicaldisk",
+        "temp": true
+    },
     "version",
     "break",
     "colors"

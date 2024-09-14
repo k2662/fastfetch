@@ -4,12 +4,18 @@
 
 #include <fcntl.h>
 #include <termios.h>
-#include <poll.h>
 #include <dirent.h>
 #include <errno.h>
+#ifndef __APPLE__
+#include <poll.h>
+#else
+#include <sys/select.h>
+#endif
 
-#if __has_include(<wordexp.h>)
-#include <wordexp.h>
+#if FF_HAVE_WORDEXP
+    #include <wordexp.h>
+#else
+    #warning "<wordexp.h> not available"
 #endif
 
 static void createSubfolders(const char* fileName)
@@ -112,7 +118,7 @@ bool ffPathExpandEnv(FF_MAYBE_UNUSED const char* in, FF_MAYBE_UNUSED FFstrbuf* o
 {
     bool result = false;
 
-    #if __has_include(<wordexp.h>) // https://github.com/termux/termux-packages/pull/7056
+    #if FF_HAVE_WORDEXP // https://github.com/termux/termux-packages/pull/7056
 
     wordexp_t exp;
     if(wordexp(in, &exp, 0) != 0)
@@ -131,43 +137,72 @@ bool ffPathExpandEnv(FF_MAYBE_UNUSED const char* in, FF_MAYBE_UNUSED FFstrbuf* o
     return result;
 }
 
-const char* ffGetTerminalResponse(const char* request, const char* format, ...)
+static int ftty = -1;
+static struct termios oldTerm;
+void restoreTerm(void)
 {
-    if (instance.config.display.pipe)
-        return "Not supported in --pipe mode";
+    tcsetattr(ftty, TCSAFLUSH, &oldTerm);
+}
 
-    struct termios oldTerm, newTerm;
-    if(tcgetattr(STDIN_FILENO, &oldTerm) == -1)
-        return "tcgetattr(STDIN_FILENO, &oldTerm) failed";
-
-    newTerm = oldTerm;
-    newTerm.c_lflag &= (tcflag_t) ~(ICANON | ECHO);
-    if(tcsetattr(STDIN_FILENO, TCSANOW, &newTerm) == -1)
-        return "tcsetattr(STDIN_FILENO, TCSANOW, &newTerm)";
-
-    fputs(request, stdout);
-    fflush(stdout);
-
-    //Give the terminal 35ms to respond
-    if(poll(&(struct pollfd) { .fd = STDIN_FILENO, .events = POLLIN }, 1, FF_IO_TERM_RESP_WAIT_MS) <= 0)
+const char* ffGetTerminalResponse(const char* request, int nParams, const char* format, ...)
+{
+    if (ftty < 0)
     {
-        tcsetattr(STDIN_FILENO, TCSANOW, &oldTerm);
-        return "poll() timeout or failed";
+        ftty = open("/dev/tty", O_RDWR | O_NOCTTY | O_CLOEXEC);
+        if (ftty < 0)
+            return "open(\"/dev/tty\", O_RDWR | O_NOCTTY | O_CLOEXEC) failed";
+
+        if(tcgetattr(ftty, &oldTerm) == -1)
+            return "tcgetattr(STDIN_FILENO, &oldTerm) failed";
+
+        struct termios newTerm = oldTerm;
+        newTerm.c_lflag &= (tcflag_t) ~(ICANON | ECHO);
+        if(tcsetattr(ftty, TCSAFLUSH, &newTerm) == -1)
+            return "tcsetattr(STDIN_FILENO, TCSAFLUSH, &newTerm)";
+        atexit(restoreTerm);
     }
 
-    char buffer[512];
-    ssize_t bytesRead = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
+    ffWriteFDData(ftty, strlen(request), request);
 
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldTerm);
+    //Give the terminal some time to respond
+    #ifndef __APPLE__
+    if(poll(&(struct pollfd) { .fd = ftty, .events = POLLIN }, 1, FF_IO_TERM_RESP_WAIT_MS) <= 0)
+        return "poll(/dev/tty) timeout or failed";
+    #else
+    {
+        // On macOS, poll(/dev/tty) always returns immediately
+        // See also https://nathancraddock.com/blog/macos-dev-tty-polling/
+        fd_set rd;
+        FD_ZERO(&rd);
+        FD_SET(ftty, &rd);
+        if(select(ftty + 1, &rd, NULL, NULL, &(struct timeval) { .tv_sec = FF_IO_TERM_RESP_WAIT_MS / 1000, .tv_usec = (FF_IO_TERM_RESP_WAIT_MS % 1000) * 1000 }) <= 0)
+            return "select(/dev/tty) timeout or failed";
+    }
+    #endif
 
-    if(bytesRead <= 0)
-        return "read(STDIN_FILENO, buffer, sizeof(buffer) - 1) failed";
-
-    buffer[bytesRead] = '\0';
+    char buffer[1024];
+    size_t bytesRead = 0;
 
     va_list args;
     va_start(args, format);
-    vsscanf(buffer, format, args);
+
+    while (true)
+    {
+        ssize_t nRead = read(ftty, buffer + bytesRead, sizeof(buffer) - bytesRead - 1);
+
+        if (nRead <= 0)
+            return "read(STDIN_FILENO, buffer, sizeof(buffer) - 1) failed";
+
+        bytesRead += (size_t) nRead;
+        buffer[bytesRead] = '\0';
+
+        int ret = vsscanf(buffer, format, args);
+        if (ret <= 0)
+            return "vsscanf(buffer, format, args) failed";
+        if (ret >= nParams)
+            break;
+    }
+
     va_end(args);
 
     return NULL;
@@ -204,7 +239,11 @@ bool ffSuppressIO(bool suppress)
 
 void listFilesRecursively(uint32_t baseLength, FFstrbuf* folder, uint8_t indentation, const char* folderName, bool pretty)
 {
-    DIR* dir = opendir(folder->chars);
+    FF_AUTO_CLOSE_FD int dfd = open(folder->chars, O_RDONLY);
+    if (dfd < 0)
+        return;
+
+    DIR* dir = fdopendir(dfd);
     if(dir == NULL)
         return;
 
@@ -221,11 +260,24 @@ void listFilesRecursively(uint32_t baseLength, FFstrbuf* folder, uint8_t indenta
 
     while((entry = readdir(dir)) != NULL)
     {
-        if(entry->d_type == DT_DIR)
-        {
-            if(ffStrEquals(entry->d_name, ".") || ffStrEquals(entry->d_name, ".."))
-                continue;
+        if(entry->d_name[0] == '.') // skip hidden files
+            continue;
 
+        bool isDir = false;
+#ifndef __sun
+        if(entry->d_type != DT_UNKNOWN && entry->d_type != DT_LNK)
+            isDir = entry->d_type == DT_DIR;
+        else
+#endif
+        {
+            struct stat stbuf;
+            if (fstatat(dfd, entry->d_name, &stbuf, 0) < 0)
+                isDir = false;
+            else
+                isDir = S_ISDIR(stbuf.st_mode);
+        }
+        if (isDir)
+        {
             ffStrbufAppendS(folder, entry->d_name);
             ffStrbufAppendC(folder, '/');
             listFilesRecursively(baseLength, folder, (uint8_t) (indentation + 1), entry->d_name, pretty);

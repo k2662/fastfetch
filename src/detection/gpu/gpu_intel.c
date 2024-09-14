@@ -1,8 +1,8 @@
 #include "gpu_driver_specific.h"
 
-#include "3rdparty/igcl/igcl_api.h"
 #include "common/library.h"
 #include "util/mallocHelper.h"
+#include "igcl.h"
 
 struct FFIgclData {
     FF_LIBRARY_SYMBOL(ctlClose)
@@ -34,7 +34,7 @@ const char* ffDetectIntelGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverRe
     if (!igclData.inited)
     {
         igclData.inited = true;
-        FF_LIBRARY_LOAD(libigcl, NULL, "dlopen igcl (ControlLib) failed", soName , 1);
+        FF_LIBRARY_LOAD(libigcl, "dlopen igcl (ControlLib) failed", soName , 1);
         FF_LIBRARY_LOAD_SYMBOL_MESSAGE(libigcl, ctlInit)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libigcl, igclData, ctlClose)
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libigcl, igclData, ctlEnumerateDevices)
@@ -47,7 +47,7 @@ const char* ffDetectIntelGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverRe
         FF_LIBRARY_LOAD_SYMBOL_VAR_MESSAGE(libigcl, igclData, ctlFrequencyGetProperties)
 
         if (ffctlInit(&(ctl_init_args_t) {
-            .AppVersion = CTL_MAKE_VERSION(CTL_IMPL_MAJOR_VERSION, CTL_IMPL_MINOR_VERSION),
+            .AppVersion = CTL_IMPL_VERSION,
             .flags = CTL_INIT_FLAG_USE_LEVEL_ZERO,
             .Size = sizeof(ctl_init_args_t),
             .Version = 0,
@@ -191,7 +191,7 @@ const char* ffDetectIntelGpuInfo(const FFGpuDriverCondition* cond, FFGpuDriverRe
                         maxValue = props.max;
                 }
             }
-            *result.frequency = maxValue / 1000;
+            *result.frequency = (uint32_t) (maxValue + 0.5);
         }
     }
 
